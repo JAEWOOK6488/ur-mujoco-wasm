@@ -32,4 +32,14 @@ for(let a=0;a<2;a++)for(let j=0;j<6;j++){
   assert.ok(Math.abs(t.torque[j]-data.actuator_force[act]*model.actuator_gear[act*6])<1e-9,'Joint torque matches transmitted actuator force');
 }
 console.log('PASS: both arms telemetry units and joint torque mapping.');
+sim.reset();run(.2);
+const block=model.nbody-1,startHeight=data.xpos[block*3+2];
+const center=Array.from(data.xipos.slice(block*3,block*3+3));
+sim.applyBodyForce(block,[0,0,2],[center[0]+.01,center[1],center[2]]);
+assert.ok(Math.abs(data.xfrc_applied[block*6+4]+.02)<1e-8,'Off-center force produces torque');
+sim.clearBodyForce(block);
+for(let i=0;i<100;i++){sim.applyBodyForce(block,[0,0,2],Array.from(data.xipos.slice(block*3,block*3+3)));sim.step();}
+assert.ok(data.xpos[block*3+2]>startHeight+.05,'External force lifts physical block');
+sim.clearBodyForce(block);assert.ok(Array.from(data.xfrc_applied.slice(block*6,block*6+6)).every(v=>v===0),'Release clears force and torque');
+console.log('PASS: external force lifts block, off-center torque, release clears wrench.');
 data.delete();model.delete();

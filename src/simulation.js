@@ -32,6 +32,12 @@ export async function createSimulation(read, progress=()=>{}) {
     for(const arm of arms)arm.actuators.forEach((a,j)=>{const max=(j===6?.04:.8)*model.opt.timestep;data.ctrl[a]+=Math.max(-max,Math.min(max,target[a]-data.ctrl[a]));});
     mj.mj_step(model,data);
   }
+  function clearBodyForce(body){data.xfrc_applied.fill(0,body*6,body*6+6);}
+  function applyBodyForce(body,force,point){
+    if(body<=0||body>=model.nbody||![...force,...point].every(Number.isFinite))return;
+    const r=point.map((v,i)=>v-data.xipos[body*3+i]);
+    data.xfrc_applied.set([...force,r[1]*force[2]-r[2]*force[1],r[2]*force[0]-r[0]*force[2],r[0]*force[1]-r[1]*force[0]],body*6);
+  }
   function telemetry(){return {time:data.time,arms:arms.map(arm=>({
     position:arm.qadr.slice(0,6).map(q=>data.qpos[q]*180/Math.PI),
     velocity:arm.dofadr.slice(0,6).map(d=>data.qvel[d]*180/Math.PI),
@@ -41,5 +47,5 @@ export async function createSimulation(read, progress=()=>{}) {
   function pose(name,selection=[0,1]){for(const a of selection)POSES[name].forEach((v,j)=>setTarget(arms[a].actuators[j],v));}
   function animate(t){arms.forEach((arm,a)=>{const direction=a===0?1:-1;[HOME[0]+direction*.22*Math.sin(t*.5),HOME[1]+.15*Math.sin(t*.7),HOME[2]+.18*Math.sin(t*.7+.5),HOME[3]-.12*Math.sin(t*.7),HOME[4],.25*Math.sin(t*.6)].forEach((v,j)=>setTarget(arm.actuators[j],v));setTarget(arm.actuators[6],.0175*(1+Math.sin(t)));});}
   reset();
-  return {mj,model,data,arms,target,limits,setTarget,reset,step,tcp,pose,animate,telemetry};
+  return {mj,model,data,arms,target,limits,setTarget,reset,step,tcp,pose,animate,telemetry,applyBodyForce,clearBodyForce};
 }

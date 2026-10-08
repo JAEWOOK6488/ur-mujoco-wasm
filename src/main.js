@@ -1,3 +1,4 @@
+import { createPerturbation } from './perturb.js';
 import { connectROS } from './ros.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -42,6 +43,7 @@ async function main(){
  const modelLight=new THREE.DirectionalLight(0xffffff,1.8);
  modelLight.position.set(-1,3,1);scene.add(modelLight);
  const {bodies}=buildScene(mj,model,scene);
+ const perturb=createPerturbation(sim,scene,camera,renderer.domElement,orbit,bodies,()=>running);
  const basisRotation=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);
  const axes=new THREE.AxesHelper(.16);axes.quaternion.copy(basisRotation);scene.add(axes);
  const tools=sim.arms.map((arm,i)=>{
@@ -80,7 +82,7 @@ async function main(){
  function setRunning(value){running=value;$('play').textContent=running?'일시정지':'계속 실행';$('play').setAttribute('aria-pressed',String(!running));$('status').textContent=running?'MuJoCo WASM · 실행 중':'MuJoCo WASM · 일시정지';}
  $('play').onclick=()=>setRunning(!running);
  $('demo').onclick=()=>{setDemo(!demo);if(demo){demoTime=0;setRunning(true);}};
- $('reset').onclick=()=>{sim.reset();setDemo(false);clearTrail();telemetry.reset(sim.telemetry());updateTargets();};
+ $('reset').onclick=()=>{perturb.stop();sim.reset();setDemo(false);clearTrail();telemetry.reset(sim.telemetry());updateTargets();};
  document.querySelectorAll('[data-pose]').forEach(button=>button.onclick=()=>{setDemo(false);sim.pose(button.dataset.pose,selectedArms());updateTargets();});
  new ResizeObserver(()=>{
    const {width,height}=$('canvas').getBoundingClientRect();
@@ -97,7 +99,7 @@ async function main(){
     while(accumulator>=model.opt.timestep){
      if(demo){demoTime+=model.opt.timestep;sim.animate(demoTime);}
 
-     ros.step();sim.step();telemetry.sample(sim.telemetry());accumulator-=model.opt.timestep;
+     ros.step();perturb.step();sim.step();telemetry.sample(sim.telemetry());accumulator-=model.opt.timestep;
     }
    }else accumulator=0;
    if(!Array.from(data.qpos).every(Number.isFinite))throw new Error('시뮬레이션 상태가 유효하지 않습니다. 페이지를 새로고침해 주세요.');
@@ -116,12 +118,12 @@ async function main(){
    $('time').textContent=data.time.toFixed(2)+' s';
    actuals.forEach((el,i)=>el.textContent='실제 '+(data.qpos[sim.arms[selected].qadr[i]]*radToDeg).toFixed(1)+'°');
    if(demo)updateTargets();
-   telemetry.render(now,selected);ros.send(now);
+   telemetry.render(now,selected);ros.send(now);perturb.render();
    orbit.update();renderer.render(scene,camera);requestAnimationFrame(frame);
   }catch(error){showError(error);}
  }
  // Read-only diagnostics for reproducible browser checks.
- window.robotLab={snapshot:()=>({time:data.time,qpos:Array.from(data.qpos),target:sim.target.slice(),tcp:sim.arms.map((_,i)=>sim.tcp(i)),joints:sim.arms.map(a=>a.qadr.map(q=>data.qpos[q])),running,demo,selected,telemetry:telemetry.snapshot()})};
+ window.robotLab={snapshot:()=>({time:data.time,qpos:Array.from(data.qpos),target:sim.target.slice(),tcp:sim.arms.map((_,i)=>sim.tcp(i)),joints:sim.arms.map(a=>a.qadr.map(q=>data.qpos[q])),running,demo,selected,perturb:perturb.snapshot(),telemetry:telemetry.snapshot()})};
  requestAnimationFrame(frame);
 }
 function showError(error){console.error(error);$('loading').hidden=false;$('loading').textContent='실행 오류: '+error.message;$('status').textContent='로드 또는 실행 실패';$('controls').disabled=true;}
