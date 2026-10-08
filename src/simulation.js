@@ -21,7 +21,8 @@ export async function createSimulation(read, progress=()=>{}) {
   const arms=ARMS.map(side=>{
     const actuators=['shoulder_pan','shoulder_lift','elbow','wrist_1','wrist_2','wrist_3','grip'].map(n=>named(model.name_actuatoradr,side+'_'+n));
     const qadr=actuators.map(a=>model.jnt_qposadr[model.actuator_trnid[2*a]]);
-    return {side,actuators,qadr,site:named(model.name_siteadr,side+'_tcp')};
+    const dofadr=actuators.map(a=>model.jnt_dofadr[model.actuator_trnid[2*a]]);
+    return {side,actuators,qadr,dofadr,site:named(model.name_siteadr,side+'_tcp')};
   });
   const target=Array.from(model.key_ctrl.slice(0,model.nu));
   const limits=target.map((_,i)=>[model.actuator_ctrlrange[i*2],model.actuator_ctrlrange[i*2+1]]);
@@ -31,9 +32,14 @@ export async function createSimulation(read, progress=()=>{}) {
     for(const arm of arms)arm.actuators.forEach((a,j)=>{const max=(j===6?.04:.8)*model.opt.timestep;data.ctrl[a]+=Math.max(-max,Math.min(max,target[a]-data.ctrl[a]));});
     mj.mj_step(model,data);
   }
+  function telemetry(){return {time:data.time,arms:arms.map(arm=>({
+    position:arm.qadr.slice(0,6).map(q=>data.qpos[q]*180/Math.PI),
+    velocity:arm.dofadr.slice(0,6).map(d=>data.qvel[d]*180/Math.PI),
+    torque:arm.dofadr.slice(0,6).map(d=>data.qfrc_actuator[d])
+  }))};}
   function tcp(arm=0){const start=arms[arm].site*3;return Array.from(data.site_xpos.slice(start,start+3));}
   function pose(name,selection=[0,1]){for(const a of selection)POSES[name].forEach((v,j)=>setTarget(arms[a].actuators[j],v));}
   function animate(t){arms.forEach((arm,a)=>{const direction=a===0?1:-1;[HOME[0]+direction*.22*Math.sin(t*.5),HOME[1]+.15*Math.sin(t*.7),HOME[2]+.18*Math.sin(t*.7+.5),HOME[3]-.12*Math.sin(t*.7),HOME[4],.25*Math.sin(t*.6)].forEach((v,j)=>setTarget(arm.actuators[j],v));setTarget(arm.actuators[6],.0175*(1+Math.sin(t)));});}
   reset();
-  return {mj,model,data,arms,target,limits,setTarget,reset,step,tcp,pose,animate};
+  return {mj,model,data,arms,target,limits,setTarget,reset,step,tcp,pose,animate,telemetry};
 }

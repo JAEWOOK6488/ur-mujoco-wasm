@@ -24,4 +24,12 @@ for(let i=0;i<10000;i++){sim.animate(i*model.opt.timestep);sim.step();assert.ok(
 // Free object should rest on the table, not fall through the rendered work surface.
 assert.ok(Math.abs(data.qpos[18]-.435)<.003,'Physical block rests on table');
 console.log('PASS: real WASM; two independent 6-axis arms; two coupled grippers; gravity hold; pose tracking; limits; reset; 20-second dual trajectory; table contact.');
+const telemetry=sim.telemetry();
+for(let a=0;a<2;a++)for(let j=0;j<6;j++){
+  const t=telemetry.arms[a],arm=arms[a],act=arm.actuators[j];
+  assert.ok(Math.abs(t.position[j]-data.qpos[arm.qadr[j]]*180/Math.PI)<1e-9);
+  assert.ok(Math.abs(t.velocity[j]-data.qvel[arm.dofadr[j]]*180/Math.PI)<1e-9);
+  assert.ok(Math.abs(t.torque[j]-data.actuator_force[act]*model.actuator_gear[act*6])<1e-9,'Joint torque matches transmitted actuator force');
+}
+console.log('PASS: both arms telemetry units and joint torque mapping.');
 data.delete();model.delete();
