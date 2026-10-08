@@ -7,6 +7,7 @@ import { buildScene, syncBodies } from './scene.js';
 THREE.ColorManagement.enabled=false;
 const $=id=>document.getElementById(id);
 const radToDeg=180/Math.PI;
+const TRAIL_CAPACITY=100;
 let running=true, demo=false, demoTime=0, selected=0;
 async function main(){
  const sim=await createSimulation(async file=>{
@@ -47,7 +48,7 @@ async function main(){
    const toolAxes=new THREE.AxesHelper(.10);scene.add(toolAxes);
    const dot=new THREE.Mesh(new THREE.SphereGeometry(.009,16,12),new THREE.MeshBasicMaterial({color}));scene.add(dot);
    const geometry=new THREE.BufferGeometry();
-   const buffer=new THREE.Float32BufferAttribute(new Float32Array(350*3),3);
+   const buffer=new THREE.Float32BufferAttribute(new Float32Array(TRAIL_CAPACITY*3),3);
    geometry.setAttribute('position',buffer);geometry.setDrawRange(0,0);
    const trail=new THREE.Line(geometry,new THREE.LineBasicMaterial({color,transparent:true,opacity:.75}));scene.add(trail);
    return {toolAxes,dot,geometry,buffer,trail,points:[]};
@@ -106,7 +107,7 @@ async function main(){
      m.set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1);
      const q=new THREE.Quaternion().setFromRotationMatrix(m);
      toolAxes.quaternion.set(q.x,q.z,-q.y,q.w).multiply(basisRotation);
-     if(sample){points.push(dot.position.clone());if(points.length>350)points.shift();points.forEach((p,i)=>buffer.setXYZ(i,p.x,p.y,p.z));buffer.needsUpdate=true;geometry.setDrawRange(0,points.length);geometry.computeBoundingSphere();}
+     if(sample){points.push(dot.position.clone());if(points.length>TRAIL_CAPACITY)points.shift();points.forEach((p,i)=>buffer.setXYZ(i,p.x,p.y,p.z));buffer.needsUpdate=true;geometry.setDrawRange(0,points.length);geometry.computeBoundingSphere();}
    });
    ['x','y','z'].forEach((key,i)=>$(key).textContent=sim.tcp(selected)[i].toFixed(3));
    $('distance').textContent=Math.hypot(...sim.tcp(0).map((v,i)=>v-sim.tcp(1)[i])).toFixed(3)+' m';
