@@ -84,3 +84,7 @@ npm run serve
 ## 라이선스와 출처
 
 앱 코드는 MIT, UR5e 모델은 BSD-3-Clause, MuJoCo는 Apache-2.0입니다. [NOTICE](NOTICE)와 [모델 원본 라이선스](public/model/LICENSE)를 확인하세요. 모델 출처는 [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie/tree/0059d4335f8156206f63a35662313385f7ad6d74/universal_robots_ur5e)입니다.
+
+## ROS 2 연동
+
+ROS 2 궤적 명령으로 웹 MuJoCo를 움직이고 실제 관절 상태를 RViz에 전달하는 로컬 모드를 추가했습니다. [실행 방법](ros/README.md)을 참고하세요. GitHub Pages는 독립 데모이며, ROS 연동은 로컬 브리지 주소에서 실행합니다.

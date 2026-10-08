@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="dual_ur5e">
+  <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
+  <link name="world"/>
+  <link name="table"><visual><geometry><box size="1.9 1.3 .08"/></geometry><material name="table_gray"><color rgba=".23 .27 .30 1"/></material></visual></link>
+  <joint name="table_mount" type="fixed"><parent link="world"/><child link="table"/><origin xyz="0 0 .36"/></joint>
+  <xacro:macro name="controlled_joint" params="prefix name initial">
+    <joint name="${prefix}${name}"><command_interface name="position"/><state_interface name="position"><param name="initial_value">${initial}</param></state_interface><state_interface name="velocity"/></joint>
+  </xacro:macro>
+  <xacro:macro name="arm" params="side x yaw color">
+    <xacro:ur_robot name="${side}_ur5e" tf_prefix="${side}_" parent="world" ur_type="ur5e" generate_ros2_control_tag="false"
+      joint_limits_parameters_file="$(find ur_description)/config/ur5e/joint_limits.yaml"
+      kinematics_parameters_file="$(find ur_description)/config/ur5e/default_kinematics.yaml"
+      physical_parameters_file="$(find ur_description)/config/ur5e/physical_parameters.yaml"
+      visual_parameters_file="$(find ur_description)/config/ur5e/visual_parameters.yaml">
+      <origin xyz="${x} .35 .4" rpy="0 0 ${yaw}"/>
+    </xacro:ur_robot>
+    <!-- Fixed open gripper visual; no grasping dynamics in mock hardware. -->
+    <link name="${side}_gripper">
+      <visual><origin xyz="0 0 .027"/><geometry><box size=".11 .056 .054"/></geometry><material name="${side}_color"><color rgba="${color}"/></material></visual>
+      <visual><origin xyz="-.049 0 .091"/><geometry><box size=".016 .044 .074"/></geometry><material name="${side}_color"/></visual>
+      <visual><origin xyz=".049 0 .091"/><geometry><box size=".016 .044 .074"/></geometry><material name="${side}_color"/></visual>
+    </link>
+    <joint name="${side}_gripper_mount" type="fixed"><parent link="${side}_tool0"/><child link="${side}_gripper"/></joint>
+    <ros2_control name="${side}_mock_system" type="system">
+      <hardware><plugin>mock_components/GenericSystem</plugin></hardware>
+      <xacro:controlled_joint prefix="${side}_" name="shoulder_pan_joint" initial="${-pi/2}"/>
+      <xacro:controlled_joint prefix="${side}_" name="shoulder_lift_joint" initial="${-pi/2}"/>
+      <xacro:controlled_joint prefix="${side}_" name="elbow_joint" initial="${pi/2}"/>
+      <xacro:controlled_joint prefix="${side}_" name="wrist_1_joint" initial="${-pi/2}"/>
+      <xacro:controlled_joint prefix="${side}_" name="wrist_2_joint" initial="${-pi/2}"/>
+      <xacro:controlled_joint prefix="${side}_" name="wrist_3_joint" initial="0"/>
+    </ros2_control>
+  </xacro:macro>
+  <xacro:arm side="left" x="-.48" yaw=".30" color=".25 .65 .85 1"/>
+  <xacro:arm side="right" x=".48" yaw="-.83" color=".9 .55 .25 1"/>
+</robot>

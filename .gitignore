@@ -4,3 +4,5 @@ public/vendor/
 artifacts/
 .DS_Store
 public/mujoco.wasm
+
+__pycache__/

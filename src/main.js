@@ -1,3 +1,4 @@
+import { connectROS } from './ros.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createSimulation, HOME, JOINTS } from './simulation.js';
@@ -86,6 +87,7 @@ async function main(){
    renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();
  }).observe($('canvas'));
  updateTargets();setRunning(true);$('controls').disabled=false;$('loading').hidden=true;
+ const ros=connectROS(sim,()=>{setDemo(false);setRunning(true);document.querySelectorAll('#joints input,#gripper,[data-pose],#demo,#reset,#play').forEach(el=>el.disabled=true);});
  let last=performance.now(),accumulator=0;
  function frame(now){
   try{
@@ -95,7 +97,7 @@ async function main(){
     while(accumulator>=model.opt.timestep){
      if(demo){demoTime+=model.opt.timestep;sim.animate(demoTime);}
 
-     sim.step();telemetry.sample(sim.telemetry());accumulator-=model.opt.timestep;
+     ros.step();sim.step();telemetry.sample(sim.telemetry());accumulator-=model.opt.timestep;
     }
    }else accumulator=0;
    if(!Array.from(data.qpos).every(Number.isFinite))throw new Error('시뮬레이션 상태가 유효하지 않습니다. 페이지를 새로고침해 주세요.');
@@ -114,7 +116,7 @@ async function main(){
    $('time').textContent=data.time.toFixed(2)+' s';
    actuals.forEach((el,i)=>el.textContent='실제 '+(data.qpos[sim.arms[selected].qadr[i]]*radToDeg).toFixed(1)+'°');
    if(demo)updateTargets();
-   telemetry.render(now,selected);
+   telemetry.render(now,selected);ros.send(now);
    orbit.update();renderer.render(scene,camera);requestAnimationFrame(frame);
   }catch(error){showError(error);}
  }
