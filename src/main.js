@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createSimulation, HOME, JOINTS, POSES } from './simulation.js';
 import { buildScene, syncBodies } from './scene.js';
+// Match the reference MuJoCo WASM viewer's linear display pipeline.
+THREE.ColorManagement.enabled=false;
 const $=id=>document.getElementById(id);
 const radToDeg=180/Math.PI;
 let running=true, demo=false, demoTime=0;
@@ -13,23 +15,28 @@ async function main(){
  },text=>$('loading').textContent=text);
  const {mj,model,data}=sim;
  const scene=new THREE.Scene();
+ scene.background=new THREE.Color(.15,.25,.35);
+ scene.fog=new THREE.Fog(scene.background,15,25.5);
  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
- renderer.setClearColor(0,0); renderer.toneMapping=THREE.ACESFilmicToneMapping;
+ renderer.outputColorSpace=THREE.LinearSRGBColorSpace;
+ renderer.toneMapping=THREE.NoToneMapping;
  $('canvas').appendChild(renderer.domElement);
  renderer.domElement.setAttribute('aria-label','마우스로 회전하고 확대할 수 있는 UR5e 로봇');
- const camera=new THREE.PerspectiveCamera(36,1,0.01,30);
+ const camera=new THREE.PerspectiveCamera(45,1,0.01,100);
  const orbit=new OrbitControls(camera,renderer.domElement);
  orbit.enableDamping=true;orbit.minDistance=.5;orbit.maxDistance=5;orbit.maxPolarAngle=Math.PI*.49;
- function resetCamera(){camera.position.set(1.55,1.25,1.85);orbit.target.set(0,.38,0);orbit.update();}
+ function resetCamera(){camera.position.set(1.35,1.1,1.65);orbit.target.set(0,.38,0);orbit.update();}
  resetCamera(); $('camera').onclick=resetCamera;
- scene.add(new THREE.HemisphereLight(0xeef6ff,0x788975,2.8));
- const sun=new THREE.DirectionalLight(0xffffff,3.5);sun.position.set(2,4,3);sun.castShadow=true;
- sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-2;sun.shadow.camera.right=2;sun.shadow.camera.top=2;sun.shadow.camera.bottom=-2;sun.shadow.bias=-.00015;scene.add(sun);
- const fill=new THREE.DirectionalLight(0xc0e9ff,1.3);fill.position.set(-3,1,-2);scene.add(fill);
+ scene.add(new THREE.AmbientLight(0xffffff,.1*Math.PI));
+ const sun=new THREE.SpotLight(0xffffff,10*Math.PI);
+ sun.position.set(0,3,3);sun.angle=1.11;sun.penumbra=.5;sun.distance=10000;sun.castShadow=true;
+ sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.near=.1;sun.shadow.camera.far=100;sun.shadow.bias=-.00005;
+ sun.target.position.set(0,.5,0);scene.add(sun.target);scene.add(sun);
+ const modelLight=new THREE.DirectionalLight(0xffffff,1.8);
+ modelLight.position.set(-1,3,1);scene.add(modelLight);
  const {bodies}=buildScene(mj,model,scene);
- const grid=new THREE.GridHelper(6,60,0xa8b9ac,0xd2dcd3);grid.position.y=.001;scene.add(grid);
  const basisRotation=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);
  const axes=new THREE.AxesHelper(.16);axes.quaternion.copy(basisRotation);scene.add(axes);
  const toolAxes=new THREE.AxesHelper(.10);scene.add(toolAxes);

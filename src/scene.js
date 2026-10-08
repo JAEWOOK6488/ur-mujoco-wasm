@@ -1,8 +1,8 @@
 /**
  * MuJoCo 모델을 three.js 씬으로 옮기는 계층.
  *
- * MuJoCo는 물리만 계산하고 그림은 그리지 않는다(데스크톱 렌더러는 OpenGL에 묶여
- * 있어 WASM으로 넘어오지 않는다). 그래서 시작할 때 geom을 three.js 메쉬로 한 번
+ * 이 앱은 MuJoCo WASM을 물리 계산에, Three.js를 렌더링에 사용한다.
+ * 시작할 때 geom을 three.js 메쉬로 한 번
  * 변환해두고, 매 프레임 body의 위치/자세만 읽어 씬 그래프에 대입한다.
  *
  * 좌표계: MuJoCo는 Z-up, three.js는 Y-up이라 축을 맞바꿔 넣는다.
@@ -11,6 +11,7 @@
  */
 
 import * as THREE from 'three';
+import { Reflector } from './vendor/Reflector.js';
 
 /** MuJoCo geom 타입 (mjtGeom). */
 const GEOM_PLANE = 0;
@@ -50,30 +51,18 @@ export function getQuaternion(buffer, index, target) {
 function buildMeshGeometry(model, meshID) {
   const geometry = new THREE.BufferGeometry();
 
-  // 정점을 Y-up으로 스위즐한다. subarray는 WASM 메모리를 직접 가리키는 뷰라
-  // 원본을 건드리지 않도록 복사본을 만든 뒤 수정한다.
-  const vertexBuffer = model.mesh_vert
-    .subarray(
-      model.mesh_vertadr[meshID] * 3,
-      (model.mesh_vertadr[meshID] + model.mesh_vertnum[meshID]) * 3,
-    )
-    .slice();
-  for (let v = 0; v < vertexBuffer.length; v += 3) {
-    const temp = vertexBuffer[v + 1];
-    vertexBuffer[v + 1] = vertexBuffer[v + 2];
-    vertexBuffer[v + 2] = -temp;
+  // Preserve OBJ corner normals, including hard edges, without mutating WASM memory.
+  const count=model.mesh_facenum[meshID]*3;
+  const positions=new Float32Array(count*3), normals=new Float32Array(count*3);
+  const faceStart=model.mesh_faceadr[meshID]*3;
+  for(let corner=0;corner<count;corner++){
+    const vi=(model.mesh_vertadr[meshID]+model.mesh_face[faceStart+corner])*3;
+    const ni=(model.mesh_normaladr[meshID]+model.mesh_facenormal[faceStart+corner])*3;
+    positions.set([model.mesh_vert[vi],model.mesh_vert[vi+2],-model.mesh_vert[vi+1]],corner*3);
+    normals.set([model.mesh_normal[ni],model.mesh_normal[ni+2],-model.mesh_normal[ni+1]],corner*3);
   }
-
-  const faceBuffer = model.mesh_face.subarray(
-    model.mesh_faceadr[meshID] * 3,
-    (model.mesh_faceadr[meshID] + model.mesh_facenum[meshID]) * 3,
-  );
-
-  geometry.setAttribute('position', new THREE.BufferAttribute(vertexBuffer, 3));
-  geometry.setIndex(Array.from(faceBuffer));
-  // MuJoCo가 주는 법선은 면 인덱스로 간접 참조되어 있어 그대로 쓰기 까다롭다.
-  // 정점 수가 적으므로 three.js가 다시 계산하게 둔다.
-  geometry.computeVertexNormals();
+  geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));
+  geometry.setAttribute('normal',new THREE.BufferAttribute(normals,3));
 
   return geometry;
 }
@@ -149,7 +138,7 @@ export function buildScene(mujoco, model, scene) {
       geometry = meshCache[meshID];
     } else if (type === GEOM_PLANE) {
       // 바닥. 실제 크기는 무한이므로 적당히 큰 판으로 대신한다.
-      geometry = new THREE.PlaneGeometry(20, 20);
+      geometry = new THREE.PlaneGeometry(100, 100);
     } else {
       geometry = buildPrimitiveGeometry(type, size);
     }
@@ -171,15 +160,26 @@ export function buildScene(mujoco, model, scene) {
       ];
     }
 
-    const material = new THREE.MeshStandardMaterial({
+    const material = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(color[0], color[1], color[2]),
       transparent: color[3] < 1.0,
       opacity: color[3],
-      roughness: 0.7,
+      roughness: matId >= 0 ? 1-model.mat_shininess[matId] : .8,
+      specularIntensity: matId >= 0 ? model.mat_specular[matId] : .5,
       metalness: 0.1,
     });
 
-    const mesh = new THREE.Mesh(geometry, material);
+    let mesh;
+    if(type===GEOM_PLANE){
+      // Two 0.5 m tiles, repeated across the 100 m visual floor.
+      const pixels=new Uint8Array([51,76,102,255,25,51,76,255,25,51,76,255,51,76,102,255]);
+      const texture=new THREE.DataTexture(pixels,2,2,THREE.RGBAFormat);
+      texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+      texture.repeat.set(100,100);texture.magFilter=THREE.NearestFilter;
+      texture.needsUpdate=true;
+      mesh=new Reflector(geometry,{clipBias:.003,texture,textureWidth:1024,textureHeight:1024,multisample:0});
+      material.dispose();
+    }else mesh = new THREE.Mesh(geometry, material);
     mesh.castShadow = type !== GEOM_PLANE;
     mesh.receiveShadow = true;
     mesh.bodyID = b;
@@ -188,7 +188,7 @@ export function buildScene(mujoco, model, scene) {
       // PlaneGeometry는 XY 평면에 생기므로 눕힌다.
       mesh.rotateX(-Math.PI / 2);
       mesh.castShadow = false;
-      mesh.material.color = new THREE.Color(0.82, 0.84, 0.88);
+
     } else {
       getPosition(model.geom_pos, g, mesh.position);
       getQuaternion(model.geom_quat, g, mesh.quaternion);

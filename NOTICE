@@ -29,3 +29,9 @@ Reference video (linked only, not copied):
   https://www.youtube.com/watch?v=lLF6I9Iduo8
   This app is an independent educational implementation. It does not run ROS 2,
   RViz, or connect to hardware and does not reproduce the video's installation.
+
+src/vendor/Reflector.js:
+  From zalo/mujoco_wasm/src/utils/Reflector.js (MIT).
+  Revision: f6b202ca29bc1706e4db583edf732c4a0902c27b.
+  Reference viewer linear color pipeline, lighting and checker floor styling
+  follow zalo/mujoco_wasm. Original license: licenses/zalo-MIT.txt.
