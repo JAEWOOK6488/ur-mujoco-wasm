@@ -30,7 +30,7 @@ async function main(){
  renderer.domElement.setAttribute('aria-label','마우스로 회전하고 확대할 수 있는 UR5e 양팔 로봇');
  const camera=new THREE.PerspectiveCamera(45,1,0.01,100);
  const orbit=new OrbitControls(camera,renderer.domElement);
- orbit.enableDamping=true;orbit.minDistance=.5;orbit.maxDistance=7;orbit.maxPolarAngle=Math.PI*.49;
+ orbit.enableDamping=true;orbit.minDistance=.5;orbit.maxDistance=7;orbit.maxPolarAngle=Math.PI;
  function resetCamera(){camera.position.set(1.6,1.8,2.5);orbit.target.set(0,.72,0);orbit.update();}
  resetCamera(); $('camera').onclick=resetCamera;
  scene.add(new THREE.AmbientLight(0xffffff,.1*Math.PI));
