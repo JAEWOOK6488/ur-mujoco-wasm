@@ -1,0 +1,7 @@
+<mujoco model="UR5e laboratory">
+  <include file="ur5e.xml"/>
+  <option timestep="0.002"/>
+  <worldbody>
+    <geom name="floor" type="plane" size="3 3 0.05" rgba="0.8 0.82 0.86 1"/>
+  </worldbody>
+</mujoco>

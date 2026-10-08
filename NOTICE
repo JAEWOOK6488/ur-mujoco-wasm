@@ -1,0 +1,31 @@
+UR MuJoCo WASM — Third-party notices
+
+Application: MIT, Copyright (c) 2026 JAEWOOK6488.
+
+UR5e model and meshes (public/model/ur5e.xml, public/model/assets/):
+  Google DeepMind MuJoCo Menagerie, BSD-3-Clause.
+  Exact upstream revision: public/model/UPSTREAM
+  Original license: public/model/LICENSE (retained verbatim).
+  Model provenance and derivation: public/model/README.md.
+  The upstream robot XML and meshes are unmodified. scene.xml is our own scene.
+
+MuJoCo engine and official WebAssembly bindings:
+  https://github.com/google-deepmind/mujoco — Apache-2.0
+  Version pinned in package-lock.json. Built binaries are generated with npm run build.
+  License: public/vendor/mujoco-LICENSE (copied during build).
+
+Three.js:
+  https://github.com/mrdoob/three.js — MIT
+  License copied during build to public/vendor/three-LICENSE.
+
+src/scene.js:
+  Adapted from JAEWOOK6488/open-duck-web/src/mujocoScene.js (MIT).
+  That implementation credits zalo/mujoco_wasm (MIT) for geom rendering and
+  coordinate conversion. Upstream MIT license retained in licenses/zalo-MIT.txt.
+
+Reference video (linked only, not copied):
+  Kevin Wood | Robotics & AI
+  UR Robot ROS 2 Install and Setup for Rviz Simulation (Ubuntu 22.04 and ROS Humble)
+  https://www.youtube.com/watch?v=lLF6I9Iduo8
+  This app is an independent educational implementation. It does not run ROS 2,
+  RViz, or connect to hardware and does not reproduce the video's installation.

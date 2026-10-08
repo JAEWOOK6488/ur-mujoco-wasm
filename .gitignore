@@ -1,0 +1,6 @@
+node_modules/
+public/app.js
+public/vendor/
+artifacts/
+.DS_Store
+public/mujoco.wasm
